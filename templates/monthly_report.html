@@ -37,7 +37,9 @@
                     {% for row in report %}
                         <tr class="border-b hover:bg-gray-50">
                             <td class="p-3 font-medium">{{ row[0] }}</td>
-                            <td class="p-3">${{ "%.2f"|format(row[1]) }}</td>
+                            <td class="p-3">
+                                ${{ "%.2f"|format(row[1] or 0) }}
+                            </td>
                             <td class="p-3">{{ row[2] }}</td>
                             <td class="p-3">{{ row[3] }}</td>
                         </tr>
