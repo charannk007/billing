@@ -1,0 +1,39 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Category</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Admin Dashboard</h1>
+            <div>
+                <a href="{{ url_for('admin_dashboard') }}" class="px-4">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="px-4">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container mx-auto mt-8">
+        <h2 class="text-2xl font-bold mb-4">Create Category</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="bg-green-100 text-green-700 p-2 rounded mb-4">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form method="POST" class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <div class="mb-4">
+                <label for="category_name" class="block text-gray-700">Category Name</label>
+                <input type="text" id="category_name" name="category_name" class="border p-2 rounded w-full" required>
+            </div>
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600">Create</button>
+        </form>
+    </div>
+</body>
+</html>

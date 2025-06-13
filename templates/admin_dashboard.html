@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Styles -->
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md" role="navigation" aria-label="Admin Navigation">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-semibold">Admin Dashboard</h1>
+            <div class="flex space-x-4 text-sm font-medium">
+                <a href="{{ url_for('create_cashier') }}" class="hover:underline">Create Cashier</a>
+                <a href="{{ url_for('reset_cashier_password') }}" class="hover:underline">Manage Cashiers</a>
+                <a href="{{ url_for('create_category') }}" class="hover:underline">Create Category</a>
+                <a href="{{ url_for('add_stock') }}" class="hover:underline">Add Stock</a>
+                <a href="{{ url_for('check_stocks') }}" class="hover:underline">Check Stocks</a>
+                <a href="{{ url_for('transactions') }}" class="hover:underline">Transactions</a>
+                <a href="{{ url_for('monthly_report') }}" class="hover:underline">Monthly Report</a>
+                <a href="{{ url_for('notifications') }}" class="hover:underline relative">
+                    Notifications
+                    {% if low_stock_count|default(0) > 0 %}
+                        <span class="absolute -top-2 -right-3 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                            {{ low_stock_count }}
+                        </span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('logout') }}" class="hover:underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto mt-10 px-4">
+        <h2 class="text-3xl font-bold mb-4">Welcome, Admin</h2>
+        <p class="text-lg">Manage your supermarket operations from here efficiently.</p>
+    </main>
+</body>
+</html>

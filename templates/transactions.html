@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Transactions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-semibold">🧾 Admin Dashboard</h1>
+            <div class="space-x-4">
+                <a href="{{ url_for('admin_dashboard') }}" class="hover:underline">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="hover:underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="container mx-auto px-4 py-8">
+        <h2 class="text-3xl font-bold mb-6">🗃️ Transactions</h2>
+
+        <!-- Search Bar -->
+        <div class="mb-6">
+            <input
+                type="text"
+                id="searchInput"
+                onkeyup="filterTable()"
+                placeholder="🔍 Search by cashier, items, or date..."
+                class="w-full p-3 rounded border border-gray-300 shadow focus:outline-none focus:ring focus:border-blue-400"
+            />
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto bg-white rounded-xl shadow-lg">
+            <table class="w-full min-w-[800px] text-sm text-left border-collapse" id="transactionsTable">
+                <thead class="bg-blue-100 text-gray-700 sticky top-0">
+                    <tr>
+                        <th class="p-3 font-semibold">Transaction_ID</th>
+                        <th class="p-3 font-semibold">Date</th>
+                        <th class="p-3 font-semibold">Time</th>
+                        <th class="p-3 font-semibold">Total (₹)</th>
+                        <th class="p-3 font-semibold">Cashier</th>
+                        <th class="p-3 font-semibold">Items</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                    <tr class="border-t hover:bg-gray-100 transition">
+                        <td class="p-3">{{ transaction[0] }}</td>
+                        <td class="p-3">{{ transaction[1] }}</td>
+                        <td class="p-3">{{ transaction[2] }}</td>
+                        <td class="p-3">₹{{ transaction[3] }}</td>
+                        <td class="p-3">{{ transaction[4] }}</td>
+                        <td class="p-3 break-words max-w-sm">{{ transaction[5] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Filter Script -->
+    <script>
+        function filterTable() {
+            const input = document.getElementById("searchInput").value.toLowerCase();
+            const rows = document.querySelectorAll("#transactionsTable tbody tr");
+
+            rows.forEach(row => {
+                const rowText = row.innerText.toLowerCase();
+                row.style.display = rowText.includes(input) ? "" : "none";
+            });
+        }
+    </script>
+
+</body>
+</html>

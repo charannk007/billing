@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Billing Page</title>
+    <script src="/static/js/scripts.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-2xl font-bold mb-4">Charan Super Market Billing System</h1>
+
+        <!-- Input Field for Search or Barcode -->
+        <input type="text" id="search" placeholder="Search item or scan barcode..." 
+               class="w-full p-2 border rounded mb-4" autocomplete="off" />
+
+        <!-- Search Results -->
+        <div id="search-results" class="mb-4 space-y-2"></div>
+
+        <!-- Cart Table -->
+        <table class="w-full table-auto border-collapse mb-4">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="border p-2">Item Name</th>
+                    <th class="border p-2">Price</th>
+                    <th class="border p-2">Qty</th>
+                    <th class="border p-2">Subtotal</th>
+                    <th class="border p-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="cart-body"></tbody>
+        </table>
+
+        <!-- Total & Submit -->
+        <div class="flex items-center justify-between mb-4">
+            <label class="font-semibold">Total:</label>
+            <input type="text" id="total" name="total_amount_display" class="p-2 border rounded w-32 text-right" readonly>
+        </div>
+
+        <!-- Billing Form -->
+        <form action="/submit_billing" method="POST" onsubmit="return confirm('Proceed with billing?')">
+            <input type="hidden" name="items" id="items">
+            <input type="hidden" name="quantities" id="quantities">
+            <input type="hidden" name="total" id="total-hidden">
+
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                Complete Billing
+            </button>
+        </form>
+    </div>
+</body>
+</html>

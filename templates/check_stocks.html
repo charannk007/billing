@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Check Stocks</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <script>
+        async function filterStocks() {
+            const categoryId = document.getElementById('category_id').value;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const response = await fetch('/filter_stocks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken || ''
+                },
+                body: `category_id=${encodeURIComponent(categoryId)}`
+            });
+
+            const data = await response.json();
+            const tableBody = document.getElementById('stocks-table').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = '';
+
+            if (data.stocks.length === 0) {
+                const row = tableBody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 5;
+                cell.textContent = 'No stocks found for this category.';
+                cell.className = 'text-center text-gray-500 p-4';
+                return;
+            }
+
+            data.stocks.forEach(stock => {
+                const row = tableBody.insertRow();
+                row.className = 'hover:bg-gray-100 transition';
+
+                row.insertCell(0).textContent = stock[1];
+
+                row.insertCell(1).innerHTML = `<div class="text-right">₹${stock[2]}</div>`;
+
+                const quantityCell = row.insertCell(2);
+                quantityCell.className = `text-right ${parseInt(stock[3]) < 100 ? 'text-red-600 font-semibold' : ''}`;
+                quantityCell.textContent = stock[3];
+
+                row.insertCell(3).textContent = stock[4];
+
+                const imgCell = row.insertCell(4);
+                imgCell.innerHTML = `<img src="/static/${stock[5]}" alt="Barcode" class="h-10 mx-auto" loading="lazy">`;
+            });
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-semibold">📦 Admin Dashboard</h1>
+            <div class="space-x-4">
+                <a href="{{ url_for('admin_dashboard') }}" class="hover:underline">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="hover:underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8">
+        <h2 class="text-3xl font-bold mb-6">📊 Check Stocks</h2>
+
+        <!-- Category Filter -->
+        <div class="mb-6">
+            <label for="category_id" class="block text-gray-700 font-medium mb-2">Filter by Category</label>
+            <select id="category_id" name="category_id" onchange="filterStocks()" class="w-full md:w-1/3 border-gray-300 p-3 rounded-lg shadow focus:ring focus:border-blue-400">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category[0] }}">{{ category[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Stocks Table -->
+        <div class="overflow-x-auto bg-white rounded-xl shadow-lg">
+    <table id="stocks-table" class="w-full min-w-[800px] text-sm text-left border-collapse">
+        <thead class="bg-blue-100 text-gray-700">
+            <tr>
+                <th class="p-3 font-semibold text-left">Item Name</th>
+                <th class="p-3 font-semibold text-right">Price</th>
+                <th class="p-3 font-semibold text-right">Quantity</th>
+                <th class="p-3 font-semibold text-left">Category</th>
+                <th class="p-3 font-semibold text-center">Barcode</th>
+            </tr>
+        </thead>
+            <tbody>
+    {% for stock in stocks %}
+        <tr class="border-t hover:bg-gray-50 transition">
+            <td class="p-3 text-left">{{ stock[1] }}</td>
+            <td class="p-3 text-right">₹{{ stock[2] }}</td>
+            <td class="p-3 text-right {% if stock[3] < 100 %}text-red-600 font-semibold{% endif %}">
+                {{ stock[3] }}
+            </td>
+            <td class="p-3 text-left">
+                {{ stock[4] }}
+            </td>
+            <td class="p-3 text-center">
+                <img src="{{ url_for('static', filename=stock[5]) }}" alt="Barcode" class="h-10 inline-block" loading="lazy">
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
+
+
+
+
+    </table>
+</div>
+
+    </div>
+</body>
+</html>

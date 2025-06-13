@@ -1,0 +1,4 @@
+flask==2.3.3
+flask-mysqldb==1.0.1
+python-barcode==0.15.1
+pillow==10.4.0

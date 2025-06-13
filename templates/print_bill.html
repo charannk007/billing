@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Charan Super Market - Bill</title>
+    <style>
+        body { font-family: Arial, sans-serif; width: 300px; margin: auto; border: 2px solid black; padding: 10px; }
+        .header, .footer, .content, .items, .line { text-align: center; }
+        .line { border-top: 2px solid black; margin: 10px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #ddd; padding: 5px; text-align: left; }
+        @media print {
+            button { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h3>Charan Super Market</h3>
+        <p>Date: {{ date }} &nbsp;&nbsp;&nbsp; Time: {{ time }}</p>
+        <p>Cashier: {{ cashier }} &nbsp;&nbsp;&nbsp; Transaction_ID: {{ transaction_id }}</p>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="items">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item[0] }}</td> <!-- item_name -->
+                    <td>{{ item[1] }}</td> <!-- quantity -->
+                    <td>{{ item[2] }}</td> <!-- price -->
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="footer">
+        <p><strong>Total: ₹{{ total }}</strong></p>
+        <p>Thank you, visit again!</p>
+    </div>
+
+    <div class="content">
+        <button onclick="window.print()">🖨️ Print</button>
+    </div>
+</body>
+</html>

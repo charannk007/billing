@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monthly Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet" />
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Admin Dashboard</h1>
+            <div>
+                <a href="{{ url_for('admin_dashboard') }}" class="px-4 hover:underline">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="px-4 hover:underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto flex-grow mt-8">
+        <h2 class="text-2xl font-bold mb-6">Monthly Report</h2>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-lg shadow-lg">
+                <thead>
+                    <tr class="bg-gray-200 text-left text-sm uppercase tracking-wide text-gray-700">
+                        <th class="p-3">Month</th>
+                        <th class="p-3">Total Amount</th>
+                        <th class="p-3">Transaction Count</th>
+                        <th class="p-3">Cashiers</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-800">
+                    {% for row in report %}
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3 font-medium">{{ row[0] }}</td>
+                            <td class="p-3">${{ "%.2f"|format(row[1]) }}</td>
+                            <td class="p-3">{{ row[2] }}</td>
+                            <td class="p-3">{{ row[3] }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="p-4 text-center text-gray-500">No report data available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>

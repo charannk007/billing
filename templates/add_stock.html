@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Stock</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Styles -->
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md" role="navigation" aria-label="Admin Navigation">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-semibold">Admin Dashboard</h1>
+            <div class="flex space-x-4 text-sm font-medium">
+                <a href="{{ url_for('admin_dashboard') }}" class="hover:underline">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="hover:underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Add Stock Form -->
+    <main class="max-w-5xl mx-auto mt-10 px-4">
+        <h2 class="text-3xl font-bold mb-4">Add Stock</h2>
+        
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="bg-green-100 text-green-700 p-3 rounded-lg mb-4">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Add Stock Form -->
+        <form method="POST" class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <div class="mb-4">
+                <label for="item_name" class="block text-gray-700">Item Name</label>
+                <input type="text" id="item_name" name="item_name" class="border p-2 rounded w-full" required>
+            </div>
+            
+            <div class="mb-4">
+                <label for="price" class="block text-gray-700">Price</label>
+                <input type="number" step="0.01" id="price" name="price" class="border p-2 rounded w-full" required>
+            </div>
+            
+            <div class="mb-4">
+                <label for="quantity" class="block text-gray-700">Quantity</label>
+                <input type="number" id="quantity" name="quantity" class="border p-2 rounded w-full" required>
+            </div>
+            
+            <div class="mb-4">
+                <label for="category_id" class="block text-gray-700">Category</label>
+                <select id="category_id" name="category_id" class="border p-2 rounded w-full" required>
+                    {% for category in categories %}
+                        <option value="{{ category[0] }}">{{ category[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600">Add Stock</button>
+        </form>
+    </main>
+</body>
+</html>
