@@ -7,6 +7,11 @@ CREATE TABLE cashiers (
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL
 );
+
+ALTER TABLE cashiers
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+
 ALTER TABLE cashiers ADD phone VARCHAR(15);
 ALTER TABLE cashiers ADD name VARCHAR(100);
 
