@@ -109,26 +109,29 @@ def reset_cashier_password():
             cur.execute("UPDATE cashiers SET password = %s WHERE id = %s", (hashed_pw, cashier_id))
             mysql.connection.commit()
             cur.close()
-            flash('Password reset successfully')
+            flash('Password reset successfully', 'success')
         
         cur = mysql.connection.cursor()
-        cur.execute("SELECT id, username, phone FROM cashiers")
+        cur.execute("SELECT id, username, phone FROM cashiers WHERE is_active = TRUE")
         cashiers = cur.fetchall()
         cur.close()
         return render_template('reset_cashier_password.html', cashiers=cashiers)
     return redirect(url_for('admin_login'))
-
-
 
 @app.route('/remove_cashier', methods=['POST'])
 def remove_cashier():
     if 'user' in session and session['user'] == 'admin':
         cashier_id = request.form['cashier_id']
         cur = mysql.connection.cursor()
-        cur.execute("DELETE FROM cashiers WHERE id = %s", (cashier_id,))
-        mysql.connection.commit()
-        cur.close()
-        flash('Cashier removed successfully')
+        try:
+            cur.execute("UPDATE cashiers SET is_active = FALSE WHERE id = %s", (cashier_id,))
+            mysql.connection.commit()
+            flash('Cashier deactivated successfully', 'success')
+        except MySQLdb.Error as e:
+            mysql.connection.rollback()
+            flash(f'Error deactivating cashier: {str(e)}', 'error')
+        finally:
+            cur.close()
         return redirect(url_for('reset_cashier_password'))
     return redirect(url_for('admin_login'))
 
