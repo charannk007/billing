@@ -5,31 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Category</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for enhanced UI */
+        .navbar {
+            transition: background-color 0.3s ease;
+        }
+        .navbar:hover {
+            background-color: #0f766e;
+        }
+        .input-field {
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2);
+        }
+        .button {
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            transform: translateY(-1px);
+        }
+    </style>
 </head>
-<body class="bg-gray-50 font-sans antialiased">
+<body class="bg-gray-100 font-sans antialiased">
     <!-- Navbar -->
-    <nav class="bg-blue-600 text-white p-4 shadow-lg">
+    <nav class="navbar bg-teal-600 text-white p-4 shadow-lg sticky top-0 z-10">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center">
-                <span class="mr-2">📦</span> Admin Dashboard
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <span>📦</span> Admin Dashboard
             </h1>
             <div class="space-x-6">
-                <a href="{{ url_for('admin_dashboard') }}" class="hover:underline hover:text-blue-200 transition">Dashboard</a>
-                <a href="{{ url_for('logout') }}" class="hover:underline hover:text-blue-200 transition">Logout</a>
+                <a href="{{ url_for('admin_dashboard') }}" class="hover:text-teal-200 transition duration-200 font-medium">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="hover:text-teal-200 transition duration-200 font-medium">Logout</a>
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
     <div class="container mx-auto px-4 py-12 flex justify-center">
-        <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Create Category</h2>
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center flex items-center justify-center gap-3">
+                <span>🗂️</span> Create Category
+            </h2>
 
             <!-- Flashed Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="flex items-center {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }} p-4 rounded-lg mb-6">
+                        <div class="flex items-center {{ 'bg-teal-100 text-teal-700' if category == 'success' else 'bg-red-100 text-red-700' }} p-4 rounded-lg mb-6">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 {% if category == 'success' %}
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -51,18 +74,18 @@
                         type="text" 
                         id="category_name" 
                         name="category_name" 
-                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm" 
+                        class="input-field w-full p-3 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-700 placeholder-gray-400" 
                         placeholder="Enter category name" 
                         required 
                         aria-required="true"
                         aria-describedby="category_name_error"
                     >
-                    <!-- Error message placeholder (client-side or server-side validation) -->
+                    <!-- Error message placeholder -->
                     <p id="category_name_error" class="text-red-600 text-sm mt-1 hidden">Please enter a valid category name.</p>
                 </div>
                 <button 
                     type="submit" 
-                    class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition font-semibold"
+                    class="button w-full bg-teal-600 text-white py-3 rounded-lg hover:bg-teal-700 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 font-semibold"
                     aria-label="Create category"
                 >
                     Create Category
