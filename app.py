@@ -1,3 +1,4 @@
+import MySQLdb
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_mysqldb import MySQL
 from config import Config
@@ -11,10 +12,6 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, request, redirect, url_for
-
-
-
-
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -137,20 +134,96 @@ def remove_cashier():
 
 @app.route('/create_category', methods=['GET', 'POST'])
 def create_category():
+    """
+    Allows admin users to create a new product category via POST request and view all categories via GET request.
+    Returns rendered HTML for normal requests and JSON for AJAX POST requests.
+    """
     if 'user' in session and session['user'] == 'admin':
         if request.method == 'POST':
-            category_name = request.form['category_name']
+            category_name = request.form['category_name'].strip()
             cur = mysql.connection.cursor()
-            cur.execute("INSERT INTO categories (name) VALUES (%s)", (category_name,))
-            mysql.connection.commit()
-            cur.close()
-            flash('Category created successfully')
-        return render_template('create_category.html')
+            try:
+                # Check if category already exists (case-insensitive)
+                cur.execute("SELECT id FROM categories WHERE LOWER(name) = LOWER(%s) AND is_deleted = FALSE", (category_name,))
+                existing_category = cur.fetchone()
+                if existing_category:
+                    flash('Category already exists', 'error')
+                else:
+                    cur.execute("INSERT INTO categories (name) VALUES (%s)", (category_name,))
+                    mysql.connection.commit()
+                    new_category_id = cur.lastrowid
+                    flash('Category created successfully', 'success')
+                    # For AJAX requests, return JSON and let frontend refresh
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({
+                            'message': 'Category created successfully',
+                            'category': {'id': new_category_id, 'name': category_name},
+                            'refresh': True
+                        })
+                    # For normal POST, redirect to refresh page and show flash
+                    return redirect(url_for('create_category'))
+            except MySQLdb.IntegrityError as e:
+                mysql.connection.rollback()
+                if e.args[0] == 1062:  # Duplicate entry
+                    flash('Category already exists', 'error')
+                else:
+                    flash(f'Error creating category: {str(e)}', 'error')
+            except MySQLdb.Error as e:
+                mysql.connection.rollback()
+                flash(f'Error creating category: {str(e)}', 'error')
+            finally:
+                cur.close()
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT id, name FROM categories WHERE is_deleted = FALSE")
+        categories = cur.fetchall()
+        cur.close()
+        return render_template('create_category.html', categories=categories)
     return redirect(url_for('admin_login'))
+
+@app.route('/delete_category', methods=['POST'])
+def delete_category():
+    if 'user' in session and session['user'] == 'admin':
+        try:
+            category_id = request.form['category_id']
+            print(f"Attempting to delete category with ID: {category_id}")
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT COUNT(*) FROM stocks WHERE category_id = %s AND is_deleted = FALSE", (category_id,))
+            stock_count = cur.fetchone()[0]
+            if stock_count > 0:
+                cur.close()
+                return jsonify({'error': 'Cannot delete category with associated stocks'}), 400
+            # Permanently delete the category from the database
+            cur.execute("DELETE FROM categories WHERE id = %s", (category_id,))
+            if cur.rowcount == 0:
+                print(f"No category found with ID: {category_id}")
+                return jsonify({'error': 'Category not found'}), 404
+            mysql.connection.commit()
+            print(f"Category {category_id} permanently deleted")
+            cur.close()
+            # Add 'refresh': True to signal frontend to refresh the page
+            return jsonify({'message': 'Category deleted successfully', 'refresh': True})
+        except MySQLdb.Error as e:
+            mysql.connection.rollback()
+            print(f"Database error during category deletion: {str(e)}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
+        except Exception as e:
+            print(f"Unexpected error during category deletion: {str(e)}")
+            return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    return jsonify({'error': 'Unauthorized'}), 401
+
 
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     if 'user' in session and session['user'] == 'admin':
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT id, name FROM categories WHERE is_deleted = FALSE")
+        categories = cur.fetchall()
+        cur.close()
+
+        if not categories:
+            flash('No categories available. Please add a category first.', 'error')
+            return render_template('add_stock.html', categories=[])
+
         if request.method == 'POST':
             item_name = request.form['item_name']
             price = request.form['price']
@@ -164,10 +237,11 @@ def add_stock():
             mysql.connection.commit()
             cur.close()
             flash('Stock added successfully')
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT id, name FROM categories")
-        categories = cur.fetchall()
-        cur.close()
+            # Refresh categories after adding stock
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT id, name FROM categories WHERE is_deleted = FALSE")
+            categories = cur.fetchall()
+            cur.close()
         return render_template('add_stock.html', categories=categories)
     return redirect(url_for('admin_login'))
 
@@ -175,7 +249,7 @@ def add_stock():
 def check_stocks():
     if 'user' in session and session['user'] == 'admin':
         cur = mysql.connection.cursor()
-        cur.execute("SELECT s.id, s.item_name, s.price, s.quantity, c.name, s.barcode FROM stocks s JOIN categories c ON s.category_id = c.id")
+        cur.execute("SELECT s.id, s.item_name, s.price, s.quantity, c.name, s.barcode FROM stocks s JOIN categories c ON s.category_id = c.id WHERE s.is_deleted = FALSE")
         stocks = cur.fetchall()
         cur.execute("SELECT id, name FROM categories")
         categories = cur.fetchall()
@@ -189,13 +263,37 @@ def filter_stocks():
         category_id = request.form['category_id']
         cur = mysql.connection.cursor()
         if category_id:
-            cur.execute("SELECT s.id, s.item_name, s.price, s.quantity, c.name, s.barcode FROM stocks s JOIN categories c ON s.category_id = c.id WHERE s.category_id = %s", (category_id,))
+            cur.execute("SELECT s.id, s.item_name, s.price, s.quantity, c.name, s.barcode FROM stocks s JOIN categories c ON s.category_id = c.id WHERE s.category_id = %s AND s.is_deleted = FALSE", (category_id,))
         else:
-            cur.execute("SELECT s.id, s.item_name, s.price, s.quantity, c.name, s.barcode FROM stocks s JOIN categories c ON s.category_id = c.id")
+            cur.execute("SELECT s.id, s.item_name, s.price, s.quantity, c.name, s.barcode FROM stocks s JOIN categories c ON s.category_id = c.id WHERE s.is_deleted = FALSE")
         stocks = cur.fetchall()
         cur.close()
         return jsonify(stocks=stocks)
-    return redirect(url_for('admin_login'))
+    return jsonify({'error': 'Unauthorized'}), 401
+
+@app.route('/delete_stock', methods=['POST'])
+def delete_stock():
+    if 'user' in session and session['user'] == 'admin':
+        try:
+            stock_id = request.form['stock_id']
+            print(f"Attempting to delete stock with ID: {stock_id}")  # Debug log
+            cur = mysql.connection.cursor()
+            cur.execute("UPDATE stocks SET is_deleted = TRUE WHERE id = %s", (stock_id,))
+            if cur.rowcount == 0:
+                print(f"No stock found with ID: {stock_id}")  # Debug log
+                return jsonify({'error': 'Stock not found'}), 404
+            mysql.connection.commit()
+            print(f"Stock {stock_id} marked as deleted")  # Debug log
+            cur.close()
+            return jsonify({'message': 'Stock deleted successfully'})
+        except MySQLdb.Error as e:
+            mysql.connection.rollback()
+            print(f"Database error during deletion: {str(e)}")  # Debug log
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
+        except Exception as e:
+            print(f"Unexpected error during deletion: {str(e)}")  # Debug log
+            return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    return jsonify({'error': 'Unauthorized'}), 401
 
 @app.route('/notifications')
 def notifications():
