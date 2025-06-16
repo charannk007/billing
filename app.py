@@ -12,6 +12,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, request, redirect, url_for
+from flask_wtf import FlaskForm
+from wtforms import StringField, FloatField, IntegerField, SelectField
+from wtforms.validators import DataRequired, NumberRange
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -212,38 +215,67 @@ def delete_category():
     return jsonify({'error': 'Unauthorized'}), 401
 
 
+
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
-    if 'user' in session and session['user'] == 'admin':
-        cur = mysql.connection.cursor()
+    if 'user' not in session or session['user'] != 'admin':
+        return redirect(url_for('admin_login'))
+
+    # Fetch categories
+    with mysql.connection.cursor() as cur:
         cur.execute("SELECT id, name FROM categories WHERE is_deleted = FALSE")
         categories = cur.fetchall()
-        cur.close()
 
-        if not categories:
-            flash('No categories available. Please add a category first.', 'error')
-            return render_template('add_stock.html', categories=[])
-
-        if request.method == 'POST':
-            item_name = request.form['item_name']
-            price = request.form['price']
-            quantity = request.form['quantity']
-            category_id = request.form['category_id']
-            item_id = str(uuid.uuid4())
-            barcode_path = generate_barcode(item_id)
-            cur = mysql.connection.cursor()
-            cur.execute("INSERT INTO stocks (id, item_name, price, quantity, category_id, barcode) VALUES (%s, %s, %s, %s, %s, %s)",
-                        (item_id, item_name, price, quantity, category_id, barcode_path))
-            mysql.connection.commit()
-            cur.close()
-            flash('Stock added successfully')
-            # Refresh categories after adding stock
-            cur = mysql.connection.cursor()
-            cur.execute("SELECT id, name FROM categories WHERE is_deleted = FALSE")
-            categories = cur.fetchall()
-            cur.close()
+    if not categories:
+        flash('No categories available. Please add a category first.', 'error')
         return render_template('add_stock.html', categories=categories)
-    return redirect(url_for('admin_login'))
+
+    if request.method == 'POST':
+        item_name = request.form['item_name'].strip()
+        price = request.form['price']
+        quantity = request.form['quantity']
+        category_id = request.form['category_id']
+
+        # Server-side validation
+        try:
+            if not item_name:
+                raise ValueError("Item name cannot be empty.")
+            price = float(price)
+            if price <= 0:
+                raise ValueError("Price must be greater than 0.")
+            quantity = int(quantity)
+            if quantity <= 0:
+                raise ValueError("Quantity must be at least 1.")
+            if not category_id:
+                raise ValueError("Please select a category.")
+        except ValueError as e:
+            flash(str(e), 'error')
+            return render_template('add_stock.html', categories=categories)
+
+        item_id = str(uuid.uuid4())
+        barcode_path = generate_barcode(item_id, item_name, price)
+
+        try:
+            with mysql.connection.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO stocks (id, item_name, price, quantity, category_id, barcode)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (item_id, item_name, price, quantity, category_id, barcode_path))
+                mysql.connection.commit()
+            flash('Stock added successfully!', 'success')
+            return redirect(url_for('add_stock'))  # PRG: Redirect to same page (GET)
+            # Alternatively: return redirect(url_for('admin_dashboard'))  # Redirect to dashboard
+        except mysql.connector.IntegrityError:
+            mysql.connection.rollback()
+            flash('Item name already exists or invalid data provided.', 'error')
+            return render_template('add_stock.html', categories=categories)
+        except Exception as e:
+            mysql.connection.rollback()
+            flash('Failed to add stock. Please try again.', 'error')
+            return render_template('add_stock.html', categories=categories)
+
+    # GET request: Render the form
+    return render_template('add_stock.html', categories=categories)
 
 @app.route('/check_stocks')
 def check_stocks():
@@ -276,25 +308,25 @@ def delete_stock():
     if 'user' in session and session['user'] == 'admin':
         try:
             stock_id = request.form['stock_id']
-            print(f"Attempting to delete stock with ID: {stock_id}")  # Debug log
+            print(f"Soft-deleting stock with ID: {stock_id}")
             cur = mysql.connection.cursor()
-            # Permanently delete the stock from the database
-            cur.execute("DELETE FROM stocks WHERE id = %s", (stock_id,))
+            # Soft delete instead of physical delete
+            cur.execute("UPDATE stocks SET is_deleted = TRUE WHERE id = %s", (stock_id,))
             if cur.rowcount == 0:
-                print(f"No stock found with ID: {stock_id}")  # Debug log
+                print(f"No stock found with ID: {stock_id}")
                 return jsonify({'error': 'Stock not found'}), 404
             mysql.connection.commit()
-            print(f"Stock {stock_id} permanently deleted")  # Debug log
             cur.close()
-            return jsonify({'message': 'Stock deleted successfully'})
+            return jsonify({'message': 'Stock soft-deleted successfully'})
         except MySQLdb.Error as e:
             mysql.connection.rollback()
-            print(f"Database error during deletion: {str(e)}")  # Debug log
+            print(f"Database error during deletion: {str(e)}")
             return jsonify({'error': f'Database error: {str(e)}'}), 500
         except Exception as e:
-            print(f"Unexpected error during deletion: {str(e)}")  # Debug log
+            print(f"Unexpected error during deletion: {str(e)}")
             return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
     return jsonify({'error': 'Unauthorized'}), 401
+
 
 @app.route('/notifications')
 def notifications():
