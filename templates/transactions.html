@@ -6,7 +6,6 @@
     <title>Transactions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for enhanced UI */
         .navbar {
             transition: background-color 0.3s ease;
         }
@@ -29,7 +28,6 @@
             max-height: 500px;
             overflow-y: auto;
         }
-        /* Scrollbar customization */
         .table-container::-webkit-scrollbar {
             width: 8px;
         }
@@ -43,10 +41,20 @@
         .table-container::-webkit-scrollbar-thumb:hover {
             background: #0f766e;
         }
+        .sort-icon::after {
+            content: '↕';
+            margin-left: 5px;
+            display: inline-block;
+        }
+        .sort-asc::after {
+            content: '↑';
+        }
+        .sort-desc::after {
+            content: '↓';
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans antialiased">
-
     <!-- Navbar -->
     <nav class="navbar bg-teal-600 text-white p-4 shadow-lg sticky top-0 z-10">
         <div class="container mx-auto flex justify-between items-center">
@@ -66,9 +74,29 @@
             <span>🗃️</span> Transactions
         </h2>
 
-        <!-- Search Bar -->
-        <div class="mb-8 max-w-lg">
-            <div class="relative">
+        <!-- Summary Statistics -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold mb-4">Summary</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-teal-50 rounded-lg">
+                    <p class="text-gray-600">Total Sales</p>
+                    <p id="totalSales" class="text-2xl font-bold text-teal-700">₹0</p>
+                </div>
+                <div class="p-4 bg-teal-50 rounded-lg">
+                    <p class="text-gray-600">Top Cashier</p>
+                    <p id="topCashier" class="text-2xl font-bold text-teal-700">-</p>
+                </div>
+                <div class="p-4 bg-teal-50 rounded-lg">
+                    <p class="text-gray-600">Total Transactions</p>
+                    <p id="totalTransactions" class="text-2xl font-bold text-teal-700">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-8 flex flex-col md:flex-row gap-4">
+            <!-- Search Bar -->
+            <div class="relative flex-1">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">🔍</span>
                 <input
                     type="text"
@@ -78,6 +106,20 @@
                     class="search-input w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-700 placeholder-gray-400"
                 />
             </div>
+            <!-- Cashier Filter -->
+            <select id="cashierFilter" onchange="filterTable()" class="w-full md:w-48 p-3 rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="">All Cashiers</option>
+                {% for cashier in transactions | map(attribute=4) | unique %}
+                <option value="{{ cashier }}">{{ cashier }}</option>
+                {% endfor %}
+            </select>
+            <!-- Date Range Filter -->
+            <div class="flex gap-2">
+                <input type="date" id="startDate" onchange="filterTable()" class="p-3 rounded-lg border border-gray-300 bg-white shadow-sm">
+                <input type="date" id="endDate" onchange="filterTable()" class="p-3 rounded-lg border border-gray-300 bg-white shadow-sm">
+            </div>
+            <!-- Export Button -->
+            <button onclick="exportToCSV()" class="bg-teal-600 text-white px-4 py-3 rounded-lg hover:bg-teal-700 transition duration-200">Export to CSV</button>
         </div>
 
         <!-- Table -->
@@ -85,10 +127,10 @@
             <table class="w-full min-w-[800px] text-sm text-left border-collapse" id="transactionsTable">
                 <thead class="bg-teal-50 text-gray-700 sticky top-0 z-5">
                     <tr>
-                        <th class="p-4 font-semibold text-teal-800">Transaction_ID</th>
-                        <th class="p-4 font-semibold text-teal-800">Date</th>
+                        <th class="p-4 font-semibold text-teal-800 cursor-pointer" onclick="sortTable(0)">Transaction_ID <span class="sort-icon"></span></th>
+                        <th class="p-4 font-semibold text-teal-800 cursor-pointer" onclick="sortTable(1)">Date <span class="sort-icon"></span></th>
                         <th class="p-4 font-semibold text-teal-800">Time</th>
-                        <th class="p-4 font-semibold text-teal-800">Total (₹)</th>
+                        <th class="p-4 font-semibold text-teal-800 cursor-pointer" onclick="sortTable(3)">Total (₹) <span class="sort-icon"></span></th>
                         <th class="p-4 font-semibold text-teal-800">Cashier</th>
                         <th class="p-4 font-semibold text-teal-800">Items</th>
                     </tr>
@@ -109,18 +151,109 @@
         </div>
     </div>
 
-    <!-- Filter Script -->
+    <!-- Enhanced Script -->
     <script>
+        let sortDirection = [1, 1, 1]; // 1 for ascending, -1 for descending
+
         function filterTable() {
-            const input = document.getElementById("searchInput").value.toLowerCase();
+            const searchInput = document.getElementById("searchInput").value.toLowerCase();
+            const cashierFilter = document.getElementById("cashierFilter").value;
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
             const rows = document.querySelectorAll("#transactionsTable tbody tr");
 
-            rows.forEach(row => {
-                const rowText = row.innerText.toLowerCase();
-                row.style.display = rowText.includes(input) ? "" : "none";
-            });
-        }
-    </script>
+            let totalSales = 0;
+            let cashierSales = {};
+            let visibleRows = 0;
 
+            rows.forEach(row => {
+                const cells = row.querySelectorAll("td");
+                const rowText = row.innerText.toLowerCase();
+                const cashier = cells[4].innerText;
+                const date = cells[1].innerText;
+                const total = parseFloat(cells[3].innerText.replace('₹', '')) || 0;
+
+                const matchesSearch = rowText.includes(searchInput);
+                const matchesCashier = !cashierFilter || cashier === cashierFilter;
+                const matchesDate = (!startDate || date >= startDate) && (!endDate || date <= endDate);
+
+                if (matchesSearch && matchesCashier && matchesDate) {
+                    row.style.display = "";
+                    visibleRows++;
+                    totalSales += total;
+                    cashierSales[cashier] = (cashierSales[cashier] || 0) + total;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            // Update summary statistics
+            document.getElementById("totalSales").textContent = `₹${totalSales.toFixed(2)}`;
+            document.getElementById("totalTransactions").textContent = visibleRows;
+            const topCashier = Object.entries(cashierSales).reduce((a, b) => a[1] > b[1] ? a : b, ['', 0]);
+            document.getElementById("topCashier").textContent = topCashier[0] || '-';
+        }
+
+        function sortTable(columnIndex) {
+            const table = document.getElementById("transactionsTable");
+            const rows = Array.from(table.querySelectorAll("tbody tr"));
+            const direction = sortDirection[columnIndex] *= -1; // Toggle direction
+
+            rows.sort((a, b) => {
+                let aValue = a.cells[columnIndex].innerText;
+                let bValue = b.cells[columnIndex].innerText;
+
+                if (columnIndex === 3) { // Total column
+                    aValue = parseFloat(aValue.replace('₹', '')) || 0;
+                    bValue = parseFloat(bValue.replace('₹', '')) || 0;
+                } else if (columnIndex === 1) { // Date column
+                    aValue = new Date(aValue);
+                    bValue = new Date(bValue);
+                }
+
+                if (aValue < bValue) return -1 * direction;
+                if (aValue > bValue) return 1 * direction;
+                return 0;
+            });
+
+            // Update sort icons
+            document.querySelectorAll("th .sort-icon").forEach(icon => {
+                icon.classList.remove("sort-asc", "sort-desc");
+            });
+            const sortIcon = document.querySelectorAll("th")[columnIndex].querySelector(".sort-icon");
+            sortIcon.classList.add(direction === 1 ? "sort-asc" : "sort-desc");
+
+            // Rebuild table
+            const tbody = table.querySelector("tbody");
+            tbody.innerHTML = "";
+            rows.forEach(row => tbody.appendChild(row));
+
+            filterTable(); // Reapply filters after sorting
+        }
+
+        function exportToCSV() {
+            const rows = document.querySelectorAll("#transactionsTable tr:not([style='display: none;'])");
+            let csvContent = "Transaction_ID,Date,Time,Total,Cashier,Items\n";
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll("td, th");
+                const rowData = Array.from(cells)
+                    .map(cell => `"${cell.innerText.replace(/"/g, '""')}"`)
+                    .join(",");
+                csvContent += rowData + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "transactions.csv";
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Initial summary calculation
+        window.onload = filterTable;
+    </script>
 </body>
 </html>
