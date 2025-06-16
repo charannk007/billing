@@ -1,3 +1,4 @@
+drop database supermarket_db;
 CREATE DATABASE supermarket_db;
 USE supermarket_db;
 
@@ -47,3 +48,18 @@ CREATE TABLE transaction_items (
     FOREIGN KEY (transaction_id) REFERENCES transactions(id),
     FOREIGN KEY (item_id) REFERENCES stocks(id)
 );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
