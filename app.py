@@ -6,6 +6,8 @@ from utils.barcode_generator import generate_barcode
 from datetime import datetime
 import uuid
 import os
+import sqlite3
+import pytz
 from flask import request, redirect, flash, render_template
 from flask import Flask
 from flask import Flask, render_template, request, redirect, url_for, flash
@@ -71,16 +73,47 @@ def cashier_login():
 
     return render_template('cashier_login.html')
 
-
 @app.route('/admin_dashboard')
 def admin_dashboard():
-    if 'user' in session and session['user'] == 'admin':
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT COUNT(*) FROM stocks WHERE quantity < 100")
-        low_stock_count = cur.fetchone()[0]
-        cur.close()
-        return render_template('admin_dashboard.html', low_stock_count=low_stock_count)
-    return redirect(url_for('index'))
+    # Get today's date in IST
+    ist = pytz.timezone('Asia/Kolkata')
+    today = datetime.now(ist).strftime('%Y-%m-%d')
+    
+    # Connect to MySQL
+    cur = mysql.connection.cursor()
+    
+    # Query for today's sales
+    cur.execute("SELECT SUM(total) FROM transactions WHERE date = %s", (today,))
+    todays_sales = cur.fetchone()[0] or 0.0
+    
+    # Query for total transactions
+    cur.execute("SELECT COUNT(*) FROM transactions WHERE date = %s", (today,))
+    total_transactions = cur.fetchone()[0] or 0
+    
+    # Query for top cashier
+    cur.execute("""
+        SELECT c.username, SUM(t.total) as total_sales 
+        FROM transactions t 
+        JOIN cashiers c ON t.cashier_id = c.id 
+        WHERE t.date = %s 
+        GROUP BY c.id, c.username 
+        ORDER BY total_sales DESC 
+        LIMIT 1
+    """, (today,))
+    top_cashier_result = cur.fetchone()
+    top_cashier = top_cashier_result[0] if top_cashier_result else '-'
+    
+    cur.close()
+    
+    # Pass to template
+    return render_template('admin_dashboard.html',
+                         admin_name='Admin',
+                         todays_sales=todays_sales,
+                         total_transactions=total_transactions,
+                         top_cashier=top_cashier,
+                         current_time=datetime.now(ist).strftime('%I:%M:%S %p IST, %d %b %Y'))
+
+
 
 @app.route('/create_cashier', methods=['GET', 'POST'])
 def create_cashier():
