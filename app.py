@@ -278,12 +278,13 @@ def delete_stock():
             stock_id = request.form['stock_id']
             print(f"Attempting to delete stock with ID: {stock_id}")  # Debug log
             cur = mysql.connection.cursor()
-            cur.execute("UPDATE stocks SET is_deleted = TRUE WHERE id = %s", (stock_id,))
+            # Permanently delete the stock from the database
+            cur.execute("DELETE FROM stocks WHERE id = %s", (stock_id,))
             if cur.rowcount == 0:
                 print(f"No stock found with ID: {stock_id}")  # Debug log
                 return jsonify({'error': 'Stock not found'}), 404
             mysql.connection.commit()
-            print(f"Stock {stock_id} marked as deleted")  # Debug log
+            print(f"Stock {stock_id} permanently deleted")  # Debug log
             cur.close()
             return jsonify({'message': 'Stock deleted successfully'})
         except MySQLdb.Error as e:
