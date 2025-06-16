@@ -8,9 +8,38 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         [x-cloak] { display: none; }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .status-online {
+            background-color: #10B981;
+            color: white;
+        }
+        .status-offline {
+            background-color: #EF4444;
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans antialiased" x-cloak>
+    <!-- Connection Status Indicator -->
+    
+
     <!-- Sidebar -->
     <div class="flex h-screen overflow-hidden">
         <aside :class="{ 'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen }" class="fixed inset-y-0 left-0 z-50 w-64 bg-teal-600 text-white transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0">
@@ -67,7 +96,7 @@
                     <span class="absolute left-full ml-2 px-2 py-1 text-sm bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">View low stock and other alerts</span>
                 </a>
                 <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-teal-700 transition group relative" data-tooltip="Sign out of the dashboard">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1"></path></svg>
                     Logout
                     <span class="absolute left-full ml-2 px-2 py-1 text-sm bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">Sign out of the dashboard</span>
                 </a>
@@ -95,28 +124,19 @@
                                 <svg class="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path></svg>
                             </div>
                             <div>
-                                <h3 class="text-xl font-semibold text-gray-800">Today’s Sales</h3>
-                                <p class="text-4xl font-bold text-teal-600">₹{{ todays_sales|default(0) }}</p>
+                                <h3 class="text-xl font-semibold text-gray-800">Today's Sales</h3>
+                                <p class="text-4xl font-bold text-teal-600">
+                                    ₹<span id="todays-sales" class="transition-all duration-500 ease-in-out">{{ todays_sales|default(0) }}</span>
+                                    <span id="sales-indicator" class="text-sm ml-2 opacity-0 transition-opacity duration-300">📈</span>
+                                </p>
                                 <p class="text-sm text-gray-600">
                                     Total sales as of 
-                                    <span id="current-time">{{ current_time|default('11:34 AM IST, June 13, 2025') }}</span>
+                                    <span id="current-time" class="font-medium">{{ current_time|default('Loading...') }}</span>
                                 </p>
-                                <script>
-                                    function updateTime() {
-                                        const now = new Date();
-                                        const options = { 
-                                            hour: '2-digit', minute: '2-digit', second: '2-digit', 
-                                            hour12: true, 
-                                            timeZoneName: 'short', 
-                                            day: '2-digit', month: 'short', year: 'numeric' 
-                                        };
-                                        document.getElementById('current-time').textContent = 
-                                            now.toLocaleTimeString('en-IN', options);
-                                    }
-                                    setInterval(updateTime, 1000);
-                                    updateTime();
-                                </script>
-                                <a href="{{ url_for('transactions') }}" class="text-teal-600 hover:underline text-sm" aria-label="View transaction history">View Transactions</a>
+                                <div class="mt-2 flex items-center space-x-4">
+                                    <a href="{{ url_for('transactions') }}" class="text-teal-600 hover:underline text-sm" aria-label="View transaction history">View Transactions</a>
+                                    <span id="last-update" class="text-xs text-gray-500">Updated: Never</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -124,5 +144,162 @@
             </main>
         </div>
     </div>
+
+    <script>
+        class LiveSalesUpdater {
+            constructor() {
+                this.lastSalesValue = null;
+                this.updateInterval = 1000; // 1 second
+                this.timeInterval = 1000; // 1 second
+                this.maxRetries = 3;
+                this.retryCount = 0;
+                this.isOnline = true;
+                
+                this.salesElement = document.getElementById('todays-sales');
+                this.timeElement = document.getElementById('current-time');
+                this.statusElement = document.getElementById('connection-status');
+                this.lastUpdateElement = document.getElementById('last-update');
+                this.salesIndicator = document.getElementById('sales-indicator');
+                
+                this.init();
+            }
+            
+            init() {
+                this.startTimeUpdater();
+                this.startSalesUpdater();
+                this.updateTime(); // Initial call
+                this.updateSales(); // Initial call
+            }
+            
+            startTimeUpdater() {
+                setInterval(() => {
+                    this.updateTime();
+                }, this.timeInterval);
+            }
+            
+            startSalesUpdater() {
+                setInterval(() => {
+                    this.updateSales();
+                }, this.updateInterval);
+            }
+            
+            updateTime() {
+                try {
+                    const now = new Date();
+                    const options = { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit', 
+                        hour12: true, 
+                        timeZoneName: 'short', 
+                        day: '2-digit', 
+                        month: 'short', 
+                        year: 'numeric' 
+                    };
+                    this.timeElement.textContent = now.toLocaleString('en-IN', options);
+                } catch (error) {
+                    console.error('Error updating time:', error);
+                }
+            }
+            
+            async updateSales() {
+                try {
+                    const response = await fetch('/api/todays_sales', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    const newSalesValue = data.sales || 0;
+                    
+                    // Update the sales value with animation
+                    if (this.lastSalesValue !== null && newSalesValue !== this.lastSalesValue) {
+                        this.animateSalesChange(newSalesValue);
+                    } else {
+                        this.salesElement.textContent = newSalesValue;
+                    }
+                    
+                    this.lastSalesValue = newSalesValue;
+                    this.retryCount = 0; // Reset retry count on success
+                    this.updateConnectionStatus(true);
+                    this.updateLastUpdateTime();
+                    
+                } catch (error) {
+                    console.error('Error fetching sales data:', error);
+                    this.handleError();
+                }
+            }
+            
+            animateSalesChange(newValue) {
+                // Add pulse animation
+                this.salesElement.classList.add('pulse-animation');
+                this.salesElement.textContent = newValue;
+                
+                // Show indicator
+                this.salesIndicator.classList.remove('opacity-0');
+                this.salesIndicator.classList.add('opacity-100');
+                
+                // Remove animation and indicator after delay
+                setTimeout(() => {
+                    this.salesElement.classList.remove('pulse-animation');
+                    this.salesIndicator.classList.remove('opacity-100');
+                    this.salesIndicator.classList.add('opacity-0');
+                }, 2000);
+            }
+            
+            handleError() {
+                this.retryCount++;
+                if (this.retryCount >= this.maxRetries) {
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            updateConnectionStatus(isOnline) {
+                if (isOnline !== this.isOnline) {
+                    this.isOnline = isOnline;
+                    
+                    if (isOnline) {
+                        this.statusElement.textContent = '🟢 Live Updates Active';
+                        this.statusElement.className = 'connection-status status-online';
+                    } else {
+                        this.statusElement.textContent = '🔴 Connection Lost';
+                        this.statusElement.className = 'connection-status status-offline';
+                    }
+                }
+            }
+            
+            updateLastUpdateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-IN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+                this.lastUpdateElement.textContent = `Updated: ${timeString}`;
+            }
+        }
+        
+        // Initialize the live sales updater when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new LiveSalesUpdater();
+        });
+        
+        // Handle page visibility changes to pause/resume updates
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // Page is visible again, force an immediate update
+                if (window.liveSalesUpdater) {
+                    window.liveSalesUpdater.updateSales();
+                }
+            }
+        });
+    </script>
 </body>
 </html>
