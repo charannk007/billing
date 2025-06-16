@@ -6,7 +6,6 @@ from utils.barcode_generator import generate_barcode
 from datetime import datetime
 import uuid
 import os
-import sqlite3
 import pytz
 from flask import request, redirect, flash, render_template
 from flask import Flask
@@ -527,6 +526,23 @@ def submit_billing():
 
     return redirect(url_for('print_bill', transaction_id=transaction_id))
 
+@app.route('/api/todays_sales')
+def api_todays_sales():
+    if 'user' not in session or session['user'] != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        ist = pytz.timezone('Asia/Kolkata')
+        today = datetime.now(ist).strftime('%Y-%m-%d')
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT SUM(total) FROM transactions WHERE date = %s", (today,))
+        total_sales = cur.fetchone()[0] or 0.0
+        cur.close()
+        return jsonify({
+            'sales': float(total_sales),
+            'timestamp': datetime.now(ist).isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -540,8 +556,6 @@ def logout():
     session.clear()
     flash("You have been logged out.")
     return redirect(url_for('index'))
-
-
 
 
 if __name__ == '__main__':
